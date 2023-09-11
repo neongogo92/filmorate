@@ -3,43 +3,58 @@ package ru.yandex.practicum.filmorate.controller;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 import ru.yandex.practicum.filmorate.model.Film;
-import ru.yandex.practicum.filmorate.exception.ValidationException;
+import ru.yandex.practicum.filmorate.model.FilmSequence;
 
+import javax.validation.Valid;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
+import ru.yandex.practicum.filmorate.exception.FilmException;
 
 @RestController
-@RequestMapping("/films")
+@RequestMapping(value = "/films")
 @Slf4j
 public class FilmController {
-
-    private final List<Film> films = new ArrayList<>();
-    private int currentId = 1;
+    private final Map<Long, Film> idToFilms = new HashMap<>();
 
     @PostMapping
-    public Film addFilm(@RequestBody Film film) {
-        film.setId(currentId++);
-        films.add(film);
-        log.info("Film added: {}", film);
+    public Film add(@Valid @RequestBody Film film) {
+        long id = FilmSequence.getNextId();
+
+        if (film.getId() == null) {
+            film.setId(id);
+        }
+
+        if (idToFilms.containsKey(film.getId())) {
+            log.error("Фильм с id={} уже существует", film.getId());
+            throw new FilmException(String.format("Пользователь с id=%s уже существует", film.getId()));
+        }
+
+        idToFilms.put(film.getId(), film);
+        log.info("Сохраняем новый фильм {}", film);
+
         return film;
     }
 
-    @PutMapping("/{id}")
-    public Film updateFilm(@PathVariable int id, @RequestBody Film film) {
-        Film existingFilm = films.stream()
-                .filter(f -> f.getId() == id)
-                .findFirst()
-                .orElseThrow(() -> new ValidationException("Film not found"));
-        existingFilm.setName(film.getName());
-        existingFilm.setDescription(film.getDescription());
-        existingFilm.setReleaseDate(film.getReleaseDate());
-        existingFilm.setDuration(film.getDuration());
-        log.info("Film updated: {}", existingFilm);
-        return existingFilm;
+    @PutMapping
+    public Film update(@Valid @RequestBody Film film) {
+        if (!idToFilms.containsKey(film.getId())) {
+            log.error("Фильм с id={} не существует", film.getId());
+            throw new FilmException(String.format("Фильм с id=%s не существует", film.getId()));
+        }
+
+        idToFilms.put(film.getId(), film);
+        log.info("Обновляем фильм {}", film);
+
+        return film;
     }
 
     @GetMapping
-    public List<Film> getAllFilms() {
-        return films;
+    public List<Film> findAll() {
+        log.info("Возвращаем все фильмы. Общее количество: {}", idToFilms.size());
+
+        return new ArrayList<>(idToFilms.values());
     }
 }
