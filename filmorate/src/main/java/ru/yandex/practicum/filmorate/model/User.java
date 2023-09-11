@@ -7,7 +7,7 @@ import java.time.LocalDate;
 @Data
 public class User {
 
-    private Integer id;
+    private Long id;
 
     @NotBlank(message = "Email cannot be blank")
     @Email(message = "Invalid email format")
